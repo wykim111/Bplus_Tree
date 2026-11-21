@@ -57,6 +57,7 @@ void bptree_splitChild(Node* parent, int index)
     // 자식 노드가 리프 노드인지 내부 노드인지에 따라 분할 방식이 다름
     if(child->is_leaf) 
     {
+        //왼쪽 편향 : 왼쪽으로 가져가야하는 부분이 많음
         mid = (child->keys_count + 1) / 2;
         up_key = child->keys[mid];
 
@@ -70,6 +71,7 @@ void bptree_splitChild(Node* parent, int index)
     } 
     else  // 내부 노드인 경우
     {
+        //왼쪽 편향 : 왼쪽으로 가져가야하는 부분이 많음
         mid = (child->keys_count) / 2;
         up_key = child->keys[mid];
 

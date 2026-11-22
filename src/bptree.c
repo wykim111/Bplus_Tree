@@ -218,7 +218,11 @@ int bptree_insert(Node** root, int key)
     return 0;
 }
 
-
+/*
+    * B+ Tree를 레벨별로 출력하는 함수.
+    * root: 출력할 트리의 루트 노드.
+    * level: 현재 노드의 레벨 (루트는 0).
+*/
 void bptree_print(Node* root, int level) 
 {
     if (root == NULL) 
@@ -242,6 +246,37 @@ void bptree_print(Node* root, int level)
             bptree_print(root->children[i], level + 1);
         }
     }
+}
+
+
+/*
+    B+ Tree의 리프 노드들을 순차적으로 출력하는 함수.
+    root: 출력할 트리의 루트 노드.
+*/
+
+void bptree_leaf_print(Node* root) 
+{
+    if (root == NULL) 
+    {
+        return;
+    }
+
+    // 리프 노드까지 내려감
+    while (!root->is_leaf) 
+    {
+        root = root->children[0];
+    }
+
+    // 리프 노드들을 순차적으로 출력
+    while (root != NULL) 
+    {
+        for (int i = 0; i < root->keys_count; i++) 
+        {
+            printf("%d ", root->keys[i]);
+        }
+        root = root->next;
+    }
+    printf("\n");
 }
 
 

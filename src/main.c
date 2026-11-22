@@ -7,7 +7,8 @@ int main()
     Node* root = NULL;
 
     // B+ Tree에 키 삽입
-    int keys_to_insert[] = {10, 20, 5, 6, 12, 30, 7, 17};
+    int keys_to_insert[] = {10, 20, 5, 6, 12, 30, 7, 17, 8};
+    //int keys_to_insert[] = {10, 20, 5,6, 12,30};
     int num_keys = sizeof(keys_to_insert) / sizeof(keys_to_insert[0]);
 
     for (int i = 0; i < num_keys; i++) 

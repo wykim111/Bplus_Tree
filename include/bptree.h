@@ -35,6 +35,9 @@ int bptree_insert(Node** root, int key);
 // B+ Tree를 출력하는 함수
 void bptree_print(Node* root, int level);
 
+// B+ Tree의 리프 노드들을 순차적으로 출력하는 함수
+void bptree_leaf_print(Node* root);
+
 // B+ Tree의 메모리를 해제하는 함수
 void bptree_destroy(Node* root);
 

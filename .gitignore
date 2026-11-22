@@ -1,2 +1,2 @@
-echo "*.o" > .gitignore
-echo "bptree_test" >> .gitignore
+*.o
+bptree_test

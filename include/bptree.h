@@ -6,6 +6,7 @@
 #define M                       4
 #define MAX_KEY_SIZE            (M - 1)   // 논리적 최대 키: 3개
 #define MAX_CHILDREN M                    // 논리적 최대 자식: 4개
+#define MIN_KEY_SIZE            (MAX_KEY_SIZE / 2) // 최소 키 개수: 1개
 
 typedef struct _Node 
 {
@@ -26,8 +27,6 @@ typedef struct _Node
 // 새로운 노드를 생성하는 함수
 Node* create_node(bool is_leaf);
 
-// B+ Tree의 자식 노드를 분할하는 함수
-void bptree_splitChild(Node* parent, int index);
 
 // B+ Tree에 키를 삽입하는 함수
 int bptree_insert(Node** root, int key);

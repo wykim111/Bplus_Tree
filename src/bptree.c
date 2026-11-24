@@ -295,10 +295,10 @@ void bptree_leaf_print(Node* root)
 
 */
 
-static void bptree_merge(Node* parent, int pos) 
+static void bptree_merge(Node* parent, int idx1, int idx2) 
 {
-    Node * left = parent->children[pos];
-    Node * right = parent->children[pos + 1];
+    Node * left = parent->children[idx1];
+    Node * right = parent->children[idx2];
 
     // 리프 노드인지 내부 노드인지에 따라 병합 방식이 다름
     if (left->is_leaf) 
@@ -315,7 +315,7 @@ static void bptree_merge(Node* parent, int pos)
     else 
     {
         // 내부 노드 병합
-        left->keys[left->keys_count] = parent->keys[pos];
+        left->keys[left->keys_count] = parent->keys[idx2 - 1];
         for (int i = 0; i < right->keys_count; i++) 
         {
             left->keys[left->keys_count + 1 + i] = right->keys[i];
@@ -331,13 +331,14 @@ static void bptree_merge(Node* parent, int pos)
         left->keys_count += 1 + right->keys_count;
     }
 
-    // 부모에서 키와 자식 포인터 제거
-    for (int i = pos; i < parent->keys_count - 1; i++) 
+    for(int i = idx1; i < parent->keys_count - 1; i++) 
     {
         parent->keys[i] = parent->keys[i + 1];
         parent->children[i + 1] = parent->children[i + 2];
     }
-    parent->children[parent->keys_count - 1] = NULL;
+
+
+    parent->children[parent->keys_count] = NULL;
     --parent->keys_count;
 
     free(right);
@@ -363,7 +364,7 @@ static void bptree_merge(Node* parent, int pos)
 
 static void bptree_balance(Node* parent, int pos);
 
-static void bptree_remove_helper(Node** root, int key) 
+static int bptree_remove_helper(Node** root, int key)
 {
     Node* current = *root;
 
@@ -381,7 +382,7 @@ static void bptree_remove_helper(Node** root, int key)
         if (idx == current->keys_count || current->keys[idx] != key) 
         {
             printf("Key %d not found in the tree.\n", key);
-            return;
+            return -1;
         }
 
         // 키를 삭제하고 뒤의 키들을 앞으로 당김
@@ -390,18 +391,19 @@ static void bptree_remove_helper(Node** root, int key)
             current->keys[j] = current->keys[j + 1];
         }
         --current->keys_count;
-    } 
+        return 0;
+    }
     else // 현재노드가 내부 노드인 경우
     {
         int idx = 0;
 
-        while (idx < current->keys_count && current->keys[idx] < key) 
+        while (idx < current->keys_count && current->keys[idx] <= key) 
         {
             idx++;
         }
 
         // 자식 노드가 최소 키 개수인지 확인하고 필요시 balance 수행
-        if (current->children[idx]->keys_count == MIN_KEY_SIZE) 
+        if (current->children[idx]->keys_count <= MIN_KEY_SIZE)
         {
             bptree_balance(current, idx);
             // 병합 후 idx가 변경될 수 있으므로 다시 확인
@@ -411,7 +413,7 @@ static void bptree_remove_helper(Node** root, int key)
             }
         }
 
-        bptree_remove_helper(&(current->children[idx]), key);
+        return bptree_remove_helper(&(current->children[idx]), key);
     }
 }
 
@@ -441,44 +443,129 @@ static void bptree_remove_helper(Node** root, int key)
 
 static void bptree_borrowFromLeft(Node* parent, int pos) 
 {
-  
+    Node * left_sibling = parent->children[pos-1];
+    Node * current = parent->children[pos];
+
+
+    if(current->is_leaf) // 리프 노드인 경우
+    {
+        // 왼쪽 형제의 마지막 키를 현재 노드의 맨 앞으로 이동
+        for(int i = current->keys_count; i > 0; i--) 
+        {
+            current->keys[i] = current->keys[i-1];
+        }
+        current->keys[0] = left_sibling->keys[left_sibling->keys_count - 1];
+        left_sibling->keys_count--;
+        current->keys_count++;
+
+        // 부모 키 갱신
+        parent->keys[pos-1] = current->keys[0];
+    } 
+    else // 내부 노드인 경우
+    {
+        
+        // 부모 키를 현재 노드의 맨 앞으로 이동
+        for(int i = current->keys_count; i > 0; i--) 
+        {
+            current->keys[i] = current->keys[i-1];
+        }
+        current->keys[0] = parent->keys[pos-1];
+
+        // 왼쪽 형제의 마지막 자식을 현재 노드의 맨 앞으로 이동
+        for(int i = current->keys_count + 1; i > 0; i--) 
+        {
+            current->children[i] = current->children[i-1];
+        }
+        current->children[0] = left_sibling->children[left_sibling->keys_count];
+
+        // 부모 키 갱신
+        parent->keys[pos-1] = left_sibling->keys[left_sibling->keys_count - 1];
+
+        left_sibling->children[left_sibling->keys_count] = NULL;
+        
+        left_sibling->keys_count--;
+        current->keys_count++;
+    }
+
 }
 
 static void bptree_borrowFromRight(Node* parent, int pos) 
 {
-    
+    Node * right_sibling = parent->children[pos + 1];
+    Node * current = parent->children[pos];
+
+    if(current->is_leaf) // 리프 노드인 경우
+    {
+        // 오른쪽 형제의 첫 키를 현재 노드의 맨 뒤로 이동
+        current->keys[current->keys_count] = right_sibling->keys[0];
+        current->keys_count++;
+
+        // 오른쪽 형제의 키들을 앞으로 이동
+        for(int i = 0; i < right_sibling->keys_count - 1; i++) 
+        {
+            right_sibling->keys[i] = right_sibling->keys[i+1];
+        }
+
+        parent->keys[pos] = right_sibling->keys[0];
+        right_sibling->keys_count--;
+
+    } 
+    else // 내부 노드인 경우
+    {
+        // 부모 키를 현재 노드의 맨 뒤로 이동
+        current->keys[current->keys_count] = parent->keys[pos];
+        current->keys_count++;
+
+        // 오른쪽 형제의 첫 자식을 현재 노드의 맨 뒤 자식으로 이동
+        current->children[current->keys_count] = right_sibling->children[0];
+
+        // 오른쪽 형제의 자식들을 앞으로 이동
+        for(int i = 0; i < right_sibling->keys_count; i++) 
+        {
+            right_sibling->children[i] = right_sibling->children[i+1];
+        }
+        right_sibling->children[right_sibling->keys_count] = NULL;
+
+        // 부모 키 갱신
+        parent->keys[pos] = right_sibling->keys[0];
+
+        // 오른쪽 형제의 키들을 앞으로 이동
+        for(int i = 0; i < right_sibling->keys_count - 1; i++) 
+        {
+            right_sibling->keys[i] = right_sibling->keys[i+1];
+        }
+        right_sibling->keys_count--;
+    }
+
 }
 
 static void bptree_balance(Node* parent, int pos) 
 {
-    //Node * current = parent->children[pos];
-    Node * sibling = NULL;
-
     // 왼쪽 형제 노드가 존재하고 여유가 있는 경우
-    if (pos > 0 && parent->children[pos - 1]->keys_count > MIN_KEY_SIZE) 
+    if (pos > 0 && parent->children[pos - 1]->keys_count > MIN_KEY_SIZE)
     {
-        sibling = parent->children[pos - 1];
-        
         // 왼쪽 형제로부터 키를 빌림
-        bptree_borrowFromLeft(parent, pos - 1);
+        bptree_borrowFromLeft(parent, pos);
             
     }
     // 오른쪽 형제 노드가 존재하고 여유가 있는 경우
     else if (pos < parent->keys_count && parent->children[pos + 1]->keys_count > MIN_KEY_SIZE) 
     {
-        sibling = parent->children[pos + 1];
-
         // 오른쪽 형제로부터 키를 빌림
-        bptree_borrowFromRight(parent, pos + 1);
+        bptree_borrowFromRight(parent, pos);
         
     }
-    else if(pos == 0) // 왼쪽 형제가 없고 오른쪽 형제도 여유가 없는 경우
+    else if(pos < parent->keys_count) // 양쪽 모두 여유가 없으며, 오른쪽 형제와 합쳐야 하는 경우
     {
-        bptree_merge(parent, pos);
+        bptree_merge(parent, pos, pos + 1);
     }
-    else if(pos == parent->keys_count) // 오른쪽 형제가 없고 왼쪽 형제도 여유가 없는 경우
+    else if(pos > 0) // 양쪽 모두 여유가 없으며, 왼쪽 형제와 합쳐야 하는 경우
     {
-        bptree_merge(parent, pos);
+        bptree_merge(parent, pos - 1, pos);
+    }
+    else 
+    {
+        printf("Error: No siblings to borrow from or merge with.\n");
     }
 
 
@@ -500,8 +587,23 @@ int bptree_remove(Node** root, int key)
         return -1;
     }
 
-    bptree_remove_helper(root, key);
-    
+    int result = bptree_remove_helper(root, key);
+
+    // 루트 축소: 키가 0개가 되면 (내부 노드면 유일한 자식, 리프면 NULL)이 새 루트
+    if((*root)->keys_count == 0)
+    {
+        Node* old_root = *root;
+        *root = old_root->is_leaf ? NULL : old_root->children[0];
+
+        if (*root)
+        {
+            (*root)->parent = NULL;
+        }
+        
+        free(old_root);
+    }
+
+    return result;
 }
 
 

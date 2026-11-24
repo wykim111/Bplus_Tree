@@ -31,11 +31,16 @@ Node* create_node(bool is_leaf);
 // B+ Tree에 키를 삽입하는 함수
 int bptree_insert(Node** root, int key);
 
+// B+ Tree에서 키를 삭제하는 함수 (0: 성공, -1: 실패)
+int bptree_remove(Node** root, int key);
+
 // B+ Tree를 출력하는 함수
 void bptree_print(Node* root, int level);
 
 // B+ Tree의 리프 노드들을 순차적으로 출력하는 함수
 void bptree_leaf_print(Node* root);
+
+
 
 // B+ Tree의 메모리를 해제하는 함수
 void bptree_destroy(Node* root);

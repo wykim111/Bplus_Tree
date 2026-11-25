@@ -34,87 +34,109 @@ Node* create_node(bool is_leaf)
     
     return new_node;
 }
+
+
 /*
     < bptree_splitChild 함수 설명 >
 
-1. mid = (key_count + 1) / 2로 설정 (왼쪽 편향)
-2. 오른쪽 새 노드 생성 (is_leaf = child->is_leaf)
-3. keys[mid .. n-1]과 values[mid .. n-1]을 오른쪽 노드로 복사
-4. 개수 갱신: left->key_count = mid, right->key_count = n - mid
-5. 리프 연결 갱신: right->next = left->next → left->next = right (순서 중요)
-6. 부모 포인터를 쓴다면 right->parent = left->parent
-7. 올라갈 키 = right->keys[0] (복사본, 오른쪽에도 남음)를 직접 설정
+    leftNode가 리프 노드인 경우
+ 1-1. 새 노드 생성(mid = ((keys_count+1)/2))
+ 1-2. mid부터 keys_count까지 새노드에 저장
+ 1-3. 링크 설정 
+    새 노드의 next = leftNode->next
+    leftNode -> next = 새 노드
+ 1-4. parent 키와 자식을 뒤로 한칸씩 밀음 : for (키 : i = key_count-1 ~ pos, 자식 : for(i = key_count; i > pos; i--) )
+    자식 parent->child[i+1] = parent->child[i];
 
+ 1-5. parent의 pos에 새노드의 0번째 키를 저장, parent->children[pos+1] = 새 노드
+ 1-6. parent와 left, 새노드의 키 갯수 설정
+     리프: leftNode = mid, 새 노드 = cnt - mid, parent +1
+     내부 노드: leftNode = mid, 새 노드 = cnt - mid - 1, parent +1
+
+    leftNode가 리프가 아닌 경우
+ 2-1. 새 노드 생성 (mid = (keys_count/2), up_key = leftNode[mid]->keys)
+ 2-2. 새 노드에 mid+1부터 keys_count까지 키 저장
+ 2-3. 새 노드에 자식 저장 : mid+1부터 ket_count 이하
+ 2-4. parent 키와 자식을 뒤로 한칸씩 밀음 : for (키 : i = key_count-1 ~ pos, 자식 : for(i = key_count; i > pos; i--))
+         자식 parent->child[i+1] =  parent->child[i];  
+ 2-5. parent의 pos에 up_key 넣고, 링크 설정 parent->children[pos+1] = 새 노드
+ 2-6. parent와 left, 새노드의 키 갯수 설정
+     리프: leftNode = mid, 새 노드 = cnt - mid, parent +1
+     내부 노드: leftNode = mid, 새 노드 = cnt - mid - 1, parent +1
 */
 
 static void bptree_splitChild(Node* parent, int index) 
 {
-    Node* child = parent->children[index];
-    Node* new_child = create_node(child->is_leaf);
-    int mid = 0;
-    int up_key = 0;
-
-    // 자식 노드가 리프 노드인지 내부 노드인지에 따라 분할 방식이 다름
-    if(child->is_leaf) 
+    Node * leftNode = parent->children[index];
+    Node * newNode = create_node(leftNode->is_leaf);
+    
+    if(leftNode->is_leaf) // 리프 노드인 경우
     {
-        //왼쪽 편향 : 왼쪽으로 가져가야하는 부분이 많음
-        mid = (child->keys_count + 1) / 2;
-        up_key = child->keys[mid];
+        int mid = (leftNode->keys_count + 1) / 2;
 
-        // 리프 노드인 경우, mid부터 끝까지의 키를 새 노드로 이동
-        for (int i = mid; i < child->keys_count; i++) 
+        // 새 노드에 mid부터 keys_count까지 키 저장
+        for (int i = mid; i < leftNode->keys_count; i++) 
         {
-            new_child->keys[i - mid] = child->keys[i];
+            newNode->keys[i - mid] = leftNode->keys[i];
         }
-        new_child->keys_count = child->keys_count - mid;
-        child->keys_count = mid; // 왼쪽 노드의 키 개수 갱신
+
+        newNode->keys_count = leftNode->keys_count - mid;
+        leftNode->keys_count = mid;
+
+        // 링크 설정
+        newNode->next = leftNode->next;
+        leftNode->next = newNode;
+
+        // 부모 노드에 키와 자식 포인터 삽입
+        for (int i = parent->keys_count; i > index; i--) 
+        {
+            parent->keys[i] = parent->keys[i - 1];
+            parent->children[i + 1] = parent->children[i];
+        }
+
+        parent->keys[index] = newNode->keys[0];
+        parent->children[index + 1] = newNode;
+        parent->keys_count++;
     } 
-    else  // 내부 노드인 경우
+    else // 내부 노드인 경우
     {
-        //왼쪽 편향 : 왼쪽으로 가져가야하는 부분이 많음
-        mid = (child->keys_count) / 2;
-        up_key = child->keys[mid];
+        int mid = leftNode->keys_count / 2;
+        int up_key = leftNode->keys[mid];
 
-        // 내부 노드인 경우, mid+1부터 끝까지의 키와 자식을 새 노드로 이동
-        for (int i = mid + 1; i < child->keys_count; i++) 
+        // 새 노드에 mid+1부터 keys_count까지 키 저장
+        for (int i = mid + 1; i < leftNode->keys_count; i++) 
         {
-            new_child->keys[i - (mid + 1)] = child->keys[i];
+            newNode->keys[i - (mid + 1)] = leftNode->keys[i];
         }
 
-        for (int i = mid + 1; i <= child->keys_count; i++) 
+        // 새 노드에 자식 저장
+        for (int i = mid + 1; i <= leftNode->keys_count; i++) 
         {
-            new_child->children[i - (mid + 1)] = child->children[i];
-            if (new_child->children[i - (mid + 1)]) 
+            newNode->children[i - (mid + 1)] = leftNode->children[i];
+            if (newNode->children[i - (mid + 1)]) 
             {
-                new_child->children[i - (mid + 1)]->parent = new_child;
+                newNode->children[i - (mid + 1)]->parent = newNode;
             }
+            leftNode->children[i] = NULL;
         }
 
-        new_child->keys_count = child->keys_count - (mid + 1);
-        child->keys_count = mid; // 왼쪽 노드의 키 개수 갱신
+        newNode->keys_count = leftNode->keys_count - mid - 1;
+        leftNode->keys_count = mid;
+
+        // 부모 노드에 키와 자식 포인터 삽입
+        for(int i = parent->keys_count; i > index; i--) 
+        {
+            parent->keys[i] = parent->keys[i - 1];
+            parent->children[i + 1] = parent->children[i];
+        }
+
+        // 부모 노드의 키 및 링크 설정
+        parent->keys[index] = up_key;
+        parent->children[index+1] = newNode;
+        ++parent->keys_count;
     }
 
-
-    // 리프 노드 연결 갱신
-    if (child->is_leaf) 
-    {
-        new_child->next = child->next;
-        child->next = new_child;
-    }
-
-    // 부모 노드에 새 자식 추가
-    for (int i = parent->keys_count; i > index; i--) 
-    {
-        // 부모 노드의 자식 포인터와 키를 오른쪽으로 이동
-        parent->children[i + 1] = parent->children[i];
-        parent->keys[i] = parent->keys[i - 1];
-    }
-
-    parent->children[index + 1] = new_child;
-    parent->keys[index] = up_key; // 올라갈 키 설정
-    parent->keys_count++;
 }
-
 
 /*
     <bptree_insertNonFull 함수 설명>
